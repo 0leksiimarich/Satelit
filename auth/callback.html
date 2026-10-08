@@ -1,1 +1,68 @@
+<!DOCTYPE html>
+<!-- ============================================================
+     auth/callback.html — сторінка повернення після Google OAuth.
+     Шлях має збігатися з Redirect URL у Supabase
+     (Authentication → URL Configuration).
+     ============================================================ -->
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Вхід виконується — Сателіт</title>
+  <link rel="icon" href="../assets/logo.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="logo-link" href="../index.html">
+        <img src="../assets/logo.svg" alt="Логотип магазину «Сателіт»" class="logo" />
+        <span class="logo-text">Сателіт</span>
+      </a>
+    </div>
+  </header>
 
+  <main>
+    <section class="container auth-page">
+      <div class="auth-card">
+        <h1>Чекаємо…</h1>
+        <p id="callback-status">Завершуємо вхід через Google.</p>
+        <p><a class="btn btn-primary" href="../account.html" id="continue-link" hidden>Продовжити</a></p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module">
+    import { getSupabase } from "../supabase.js";
+
+    const statusEl = document.getElementById("callback-status");
+    const linkEl = document.getElementById("continue-link");
+
+    function go(url) {
+      window.location.replace(url);
+    }
+
+    try {
+      const sb = await getSupabase();
+      // SDK сам обробляє токен із URL під час ініціалізації.
+      const { data } = await sb.auth.getSession();
+      if (data.session) {
+        statusEl.textContent = "Готово! Переходимо до вашого акаунта…";
+        go("../account.html");
+      } else {
+        statusEl.textContent = "Не вдалося завершити вхід. Спробуйте ще раз.";
+        linkEl.textContent = "Повернутися до входу";
+        linkEl.href = "../login.html";
+        linkEl.hidden = false;
+      }
+    } catch (err) {
+      // Демо-режим або помилка мережі — не показуємо технічний стек.
+      statusEl.textContent =
+        "Сервер авторизації ще не налаштовано. Вхід через Google стане доступним після підключення Supabase.";
+      linkEl.textContent = "Повернутися до входу";
+      linkEl.href = "../login.html";
+      linkEl.hidden = false;
+    }
+  </script>
+</body>
+</html>
