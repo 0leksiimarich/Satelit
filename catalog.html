@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Каталог — Сателіт | Техніка та електроніка у Шполі</title>
+  <meta name="description" content="Каталог магазину «Сателіт»: батарейки, TV Box, антени, кабелі, аксесуари та інша електроніка. Ціни у гривнях.">
+  <link rel="icon" href="assets/logo.svg" type="image/png">
+  <meta property="og:title" content="Каталог — Сателіт">
+  <meta property="og:description" content="Каталог техніки та електроніки магазину «Сателіт» у Шполі.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta property="og:locale" content="uk_UA">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="header-mount"></div>
+
+  <main class="container section">
+    <h1 class="section-title">Каталог</h1>
+
+    <div class="demo-note">Увага: товари з префіксом «[Приклад]» — демонстраційні для тестування архітектури. Реальний асортимент буде додано пізніше (через Supabase).</div>
+
+    <!-- Панель фільтрів -->
+    <div class="catalog-toolbar">
+      <input type="search" id="search-input" class="field-input" placeholder="Пошук товарів…" aria-label="Пошук">
+      <select id="category-select" class="field-input" aria-label="Категорія">
+        <option value="">Всі категорії</option>
+      </select>
+      <select id="sort-select" class="field-input" aria-label="Сортування">
+        <option value="default">За замовчуванням</option>
+        <option value="price-asc">Ціна: від дешевших</option>
+        <option value="price-desc">Ціна: від дорожчих</option>
+        <option value="name">За назвою</option>
+      </select>
+    </div>
+
+    <div class="product-grid" id="catalog-grid"></div>
+    <p id="no-results" class="empty-state" hidden>Нічого не знайдено. Спробуйте змінити запит.</p>
+  </main>
+
+  <div id="footer-mount"></div>
+
+  <script type="module">
+    import { getProducts, CATEGORIES } from "./products.js";
+    import { productCardHTML, bindAddToCartButtons } from "./app.js";
+
+    const grid = document.getElementById("catalog-grid");
+    const searchInput = document.getElementById("search-input");
+    const catSelect = document.getElementById("category-select");
+    const sortSelect = document.getElementById("sort-select");
+    const noResults = document.getElementById("no-results");
+
+    let allProducts = [];
+
+    // Заповнити список категорій
+    CATEGORIES.forEach((c) => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.textContent = c.name;
+      catSelect.appendChild(opt);
+    });
+
+    // Категорія з URL (?cat=tvbox) — для посилань із головної
+    const urlCat = new URLSearchParams(location.search).get("cat");
+    if (urlCat && CATEGORIES.some((c) => c.id === urlCat)) catSelect.value = urlCat;
+
+    function render() {
+      const q = searchInput.value.trim().toLowerCase();
+      const cat = catSelect.value;
+      const sort = sortSelect.value;
+
+      let list = allProducts.filter((p) => {
+        const matchCat = !cat || p.category === cat;
+        const matchQ = !q || p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q);
+        return matchCat && matchQ;
+      });
+
+      if (sort === "price-asc") list.sort((a, b) => a.price - b.price);
+      if (sort === "price-desc") list.sort((a, b) => b.price - a.price);
+      if (sort === "name") list.sort((a, b) => a.name.localeCompare(b.name, "uk"));
+
+      grid.innerHTML = list.map(productCardHTML).join("");
+      noResults.hidden = list.length > 0;
+      bindAddToCartButtons(grid);
+    }
+
+    getProducts().then((products) => {
+      allProducts = products;
+      render();
+    });
+
+    searchInput.addEventListener("input", render);
+    catSelect.addEventListener("change", render);
+    sortSelect.addEventListener("change", render);
+  </script>
+</body>
+</html>
