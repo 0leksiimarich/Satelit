@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Створити акаунт — Сателіт</title>
+  <meta name="description" content="Реєстрація акаунта в магазині «Сателіт» за email і паролем.">
+  <link rel="icon" href="assets/logo.svg" type="image/png">
+  <meta property="og:title" content="Створити акаунт — Сателіт">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta property="og:locale" content="uk_UA">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="header-mount"></div>
+
+  <main class="container">
+    <div class="form-card">
+      <img src="assets/logo.svg" alt="Логотип Сателіт" style="height:56px;margin:0 auto 12px;">
+      <h1>Створити акаунт</h1>
+
+      <form id="register-form" novalidate>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" autocomplete="email" required placeholder="you@example.com">
+        </div>
+        <div class="field">
+          <label for="password">Пароль</label>
+          <input type="password" id="password" autocomplete="new-password" required placeholder="Мінімум 6 символів">
+        </div>
+        <div class="field">
+          <label for="password2">Повторіть пароль</label>
+          <input type="password" id="password2" autocomplete="new-password" required>
+        </div>
+        <p class="error-text" id="reg-error" role="alert"></p>
+        <button type="submit" class="btn btn-primary btn-block">Зареєструватися</button>
+      </form>
+
+      <p class="divider">Вже маєте акаунт?</p>
+      <a class="btn btn-outline btn-block" href="login.html">Увійти</a>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+
+  <script type="module">
+    import { signUpWithEmail, translateAuthError } from "./auth.js";
+
+    const errEl = document.getElementById("reg-error");
+
+    document.getElementById("register-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.textContent = "";
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const password2 = document.getElementById("password2").value;
+
+      if (!email || !password) { errEl.textContent = "Заповніть усі поля."; return; }
+      if (password.length < 6) { errEl.textContent = "Пароль занадто короткий (мінімум 6 символів)."; return; }
+      if (password !== password2) { errEl.textContent = "Паролі не збігаються."; return; }
+
+      try {
+        const data = await signUpWithEmail(email, password);
+        // Supabase може потребувати підтвердження email.
+        if (data.user && data.session) {
+          location.href = "account.html";
+        } else {
+          errEl.textContent = "";
+          alert("Реєстрація успішна! Перевірте пошту для підтвердження email (якщо воно увімкнене), потім увійдіть.");
+          location.href = "login.html";
+        }
+      } catch (err) {
+        if (err && err.message === "DEMO_MODE") {
+          errEl.textContent = "Реєстрація ще не підключена (додайте Supabase ключі в supabase.js).";
+        } else {
+          errEl.textContent = translateAuthError(err);
+        }
+      }
+    });
+  </script>
+</body>
+</html>
