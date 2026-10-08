@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Товар — Сателіт | Техніка та електроніка у Шполі</title>
+  <meta name="description" content="Сторінка товару магазину «Сателіт» (Шпола). Опис, ціна у гривнях, додавання в кошик.">
+  <link rel="icon" href="assets/logo.svg" type="image/png">
+  <meta property="og:title" content="Товар — Сателіт">
+  <meta property="og:description" content="Техніка та електроніка від магазину «Сателіт» у Шполі.">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta property="og:locale" content="uk_UA">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="header-mount"></div>
+
+  <main class="container section">
+    <div id="product-view"><!-- рендериться зі script нижче --></div>
+  </main>
+
+  <div id="footer-mount"></div>
+
+  <script type="module">
+    import { getProductById, formatPrice, getCategoryName } from "./products.js";
+    import { addToCart, updateCartBadge } from "./app.js";
+
+    const view = document.getElementById("product-view");
+    const id = new URLSearchParams(location.search).get("id");
+    const product = id ? await getProductById(id) : null;
+
+    if (!product) {
+      view.innerHTML = `
+        <div class="empty-state">
+          <h2>Товар не знайдено</h2>
+          <p>Можливо, посилання застаріло або товар ще не додано.</p>
+          <a href="catalog.html" class="btn btn-primary" style="margin-top:16px;">До каталогу</a>
+        </div>`;
+    } else {
+      const isDemo = String(product.id).startsWith("demo-");
+      view.innerHTML = `
+        <p><a href="catalog.html" class="nav-link" style="padding-left:0;">← Назад до каталогу</a></p>
+        ${isDemo ? '<div class="demo-note">Увага: це демонстраційна картка («Приклад»). Реальні товари ще не додані.</div>' : ""}
+        <div class="product-detail">
+          <div class="product-media product-detail-media">
+            <img src="${product.image}" alt="${product.name}">
+            ${product.sale ? '<span class="badge badge-sale">Акція</span>' : ""}
+          </div>
+          <div class="product-detail-info">
+            <p class="product-category">${getCategoryName(product.category)}</p>
+            <h1 class="section-title" style="margin-bottom:8px;">${product.name}</h1>
+            <p class="product-desc" style="-webkit-line-clamp:unset;">${product.description}</p>
+            <p class="product-price" style="font-size:1.6rem;margin:16px 0;">${formatPrice(product.price)}</p>
+            <button class="btn btn-primary btn-lg" id="detail-add">Додати в кошик</button>
+          </div>
+        </div>`;
+      document.getElementById("detail-add").addEventListener("click", (e) => {
+        addToCart(product);
+        updateCartBadge();
+        e.target.textContent = "Додано ✓";
+        setTimeout(() => (e.target.textContent = "Додати в кошик"), 1200);
+      });
+      document.title = `${product.name} — Сателіт`;
+    }
+  </script>
+</body>
+</html>
