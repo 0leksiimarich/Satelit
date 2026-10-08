@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Мій акаунт — Сателіт</title>
+  <meta name="description" content="Особистий кабінет клієнта магазину «Сателіт»: профіль та замовлення.">
+  <link rel="icon" href="assets/logo.svg" type="image/png">
+  <meta property="og:title" content="Мій акаунт — Сателіт">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta property="og:locale" content="uk_UA">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="header-mount"></div>
+
+  <main class="container section">
+    <h1 class="section-title">Мій акаунт</h1>
+
+    <div id="account-guest" hidden>
+      <div class="empty-state">
+        <h2>Ви не увійшли в акаунт</h2>
+        <p>Увійдіть, щоб переглянути профіль та свої замовлення.</p>
+        <a href="login.html" class="btn btn-primary" style="margin-top:14px;">Увійти</a>
+      </div>
+    </div>
+
+    <div id="account-body" hidden>
+      <section class="section-alt" style="border-radius:12px;padding:22px;margin-bottom:18px;">
+        <h2 style="font-size:1.1rem;margin-bottom:10px;">Дані профілю</h2>
+        <ul class="info-list">
+          <li><strong>Email:</strong> <span id="acc-email">—</span></li>
+          <li><strong>Ім'я:</strong> <span id="acc-name">—</span></li>
+        </ul>
+      </section>
+
+      <section style="border-radius:12px;border:1px solid var(--gray-300);padding:22px;margin-bottom:18px;">
+        <h2 style="font-size:1.1rem;margin-bottom:10px;">Мої замовлення</h2>
+        <p class="demo-note" id="orders-note">Замовлення з'являться тут після першого оформлення (дані беруться з Supabase).</p>
+        <ul id="orders-list" class="info-list"></ul>
+      </section>
+
+      <button class="btn btn-outline" id="logout-btn">Вийти</button>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+
+  <script type="module">
+    import { onAuthChange, signOutUser } from "./auth.js";
+    import { isSupabaseConfigured, getSupabase } from "./supabase.js";
+    import { formatPrice } from "./products.js";
+
+    const guest = document.getElementById("account-guest");
+    const body = document.getElementById("account-body");
+
+    // Завантаження замовлень поточного користувача (RLS дозволить
+    // побачити лише власні рядки — див. supabase-setup.sql).
+    async function loadOrders(user) {
+      const list = document.getElementById("orders-list");
+      const note = document.getElementById("orders-note");
+      list.innerHTML = "";
+      if (!isSupabaseConfigured) {
+        note.textContent = "Історія замовлень з'явиться після підключення Supabase.";
+        return;
+      }
+      try {
+        const sb = await getSupabase();
+        const { data, error } = await sb
+          .from("orders")
+          .select("*")
+          .eq("user_id", user.id)
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        if (!data || data.length === 0) {
+          note.textContent = "У вас ще немає замовлень.";
+          return;
+        }
+        note.hidden = true;
+        for (const o of data) {
+          const li = document.createElement("li");
+          const date = new Date(o.created_at).toLocaleDateString("uk-UA");
+          const itemsCount = Array.isArray(o.items) ? o.items.length : 0;
+          li.innerHTML = `<strong>Замовлення від ${date}</strong> — ${itemsCount} поз. · ${formatPrice(o.total)} · статус: ${o.status}`;
+          list.appendChild(li);
+        }
+      } catch (err) {
+        console.error(err);
+        note.textContent = "Не вдалося завантажити замовлення. Спробуйте оновити сторінку.";
+      }
+    }
+
+    onAuthChange((user) => {
+      if (user) {
+        guest.hidden = true;
+        body.hidden = false;
+        document.getElementById("acc-email").textContent = user.email || "—";
+        document.getElementById("acc-name").textContent =
+          user.user_metadata?.full_name || user.user_metadata?.name || "—";
+        loadOrders(user);
+      } else {
+        guest.hidden = false;
+        body.hidden = true;
+        if (!isSupabaseConfigured) {
+          guest.querySelector("p").textContent =
+            "Справжня авторизація підключиться після додавання Supabase ключів (supabase.js).";
+        }
+      }
+    });
+
+    document.getElementById("logout-btn").addEventListener("click", async () => {
+      await signOutUser();
+      location.href = "index.html";
+    });
+  </script>
+</body>
+</html>
