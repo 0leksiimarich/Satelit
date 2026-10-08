@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Кошик — Сателіт</title>
+  <meta name="description" content="Кошик магазину «Сателіт»: товари, кількість та сума замовлення у гривнях.">
+  <link rel="icon" href="assets/logo.svg" type="image/png">
+  <meta property="og:title" content="Кошик — Сателіт">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta property="og:locale" content="uk_UA">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="header-mount"></div>
+
+  <main class="container section">
+    <h1 class="section-title">Кошик</h1>
+    <div id="cart-content"><!-- рендериться --></div>
+  </main>
+
+  <div id="footer-mount"></div>
+
+  <script type="module">
+    import { getCart, saveCart } from "./app.js";
+    import { formatPrice } from "./products.js";
+
+    const mount = document.getElementById("cart-content");
+
+    function render() {
+      const cart = getCart();
+
+      if (cart.length === 0) {
+        mount.innerHTML = `
+          <div class="empty-state">
+            <h2>Ваш кошик порожній</h2>
+            <a href="catalog.html" class="btn btn-primary">Перейти до каталогу</a>
+          </div>`;
+        return;
+      }
+
+      const rows = cart.map((item) => `
+        <tr>
+          <td>${item.name}</td>
+          <td>
+            <span class="qty-controls">
+              <button class="qty-btn" data-action="dec" data-id="${item.id}" aria-label="Менше">−</button>
+              ${item.qty}
+              <button class="qty-btn" data-action="inc" data-id="${item.id}" aria-label="Більше">+</button>
+            </span>
+          </td>
+          <td>${formatPrice(item.price * item.qty)}</td>
+          <td><button class="qty-btn" data-action="remove" data-id="${item.id}" aria-label="Видалити">✕</button></td>
+        </tr>`).join("");
+
+      const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+      mount.innerHTML = `
+        <table class="cart-table">
+          <thead><tr><th>Товар</th><th>Кількість</th><th>Ціна</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="cart-summary">
+          <p class="cart-total">Разом: ${formatPrice(total)}</p>
+          <a href="checkout.html" class="btn btn-primary btn-lg">Оформити замовлення</a>
+        </div>`;
+
+      mount.querySelectorAll("[data-action]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const cart = getCart();
+          const item = cart.find((i) => i.id === btn.dataset.id);
+          if (!item) return;
+          if (btn.dataset.action === "inc") item.qty += 1;
+          if (btn.dataset.action === "dec") item.qty = Math.max(1, item.qty - 1);
+          if (btn.dataset.action === "remove") {
+            const idx = cart.indexOf(item);
+            cart.splice(idx, 1);
+          }
+          saveCart(cart);
+          render();
+        });
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>
