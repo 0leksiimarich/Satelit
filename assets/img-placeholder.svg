@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300">
+  <!-- Тимчасова заглушка зображення товару (НЕ реальне фото). -->
+  <!-- Видалити після додавання справжніх фото товарів. -->
+  <rect width="400" height="300" fill="#f4f6f8"/>
+  <rect x="1" y="1" width="398" height="298" fill="none" stroke="#d7dce2" stroke-width="2"/>
+  <circle cx="200" cy="120" r="42" fill="none" stroke="#0b74e3" stroke-width="6"/>
+  <path d="M232 152 L262 182" stroke="#0b74e3" stroke-width="8" stroke-linecap="round"/>
+  <text x="200" y="225" font-family="Arial, sans-serif" font-size="20" fill="#5c6570" text-anchor="middle">Фото товару</text>
+  <text x="200" y="252" font-family="Arial, sans-serif" font-size="16" fill="#9aa2ab" text-anchor="middle">(заглушка)</text>
+</svg>
