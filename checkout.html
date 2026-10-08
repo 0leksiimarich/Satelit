@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Оформлення замовлення — Сателіт</title>
+  <meta name="description" content="Оформлення замовлення в магазині «Сателіт»: самовивіз, Нова пошта або Укрпошта.">
+  <link rel="icon" href="assets/logo.svg" type="image/png">
+  <meta property="og:title" content="Оформлення замовлення — Сателіт">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="assets/logo.svg">
+  <meta property="og:locale" content="uk_UA">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div id="header-mount"></div>
+
+  <main class="container section">
+    <h1 class="section-title">Оформлення замовлення</h1>
+
+    <div class="demo-note">Для запису замовлення в Supabase потрібно бути увійденим в акаунт (замовлення зберігаються у таблиці orders, доступ до них має лише їх власник).</div>
+
+    <div style="max-width:560px;">
+      <form id="checkout-form" novalidate>
+        <div class="field">
+          <label for="cust-name">Ім'я</label>
+          <input type="text" id="cust-name" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="cust-phone">Телефон</label>
+          <input type="tel" id="cust-phone" autocomplete="tel" required placeholder="+380…">
+        </div>
+        <div class="field">
+          <label for="cust-email">Email</label>
+          <input type="email" id="cust-email" autocomplete="email" required>
+        </div>
+
+        <fieldset class="field" style="border:none;">
+          <legend style="font-weight:600;margin-bottom:8px;">Спосіб отримання</legend>
+          <!-- Кур'єрської доставки НЕМАЄ — тільки ці три варіанти -->
+          <label class="radio-row"><input type="radio" name="delivery" value="pickup" checked> Самовивіз — безкоштовно</label>
+          <label class="radio-row"><input type="radio" name="delivery" value="novaposhta"> Нова пошта — оплачує покупець за тарифом перевізника</label>
+          <label class="radio-row"><input type="radio" name="delivery" value="ukrposhta"> Укрпошта — оплачує покупець за тарифом перевізника</label>
+        </fieldset>
+
+        <div class="field" id="address-field" hidden>
+          <label for="cust-address">Місто та відділення / адреса отримання</label>
+          <input type="text" id="cust-address" placeholder="Напр.: м. Шпола, НП відділення №1">
+        </div>
+
+        <p class="error-text" id="checkout-error" role="alert"></p>
+        <p class="cart-total" id="checkout-total">Разом: —</p>
+        <button type="submit" class="btn btn-primary btn-lg btn-block">Підтвердити замовлення</button>
+      </form>
+
+      <div id="checkout-success" hidden class="cta-box" style="margin-top:24px;">
+        <h2>Дякуємо! Замовлення прийнято ✓</h2>
+        <p>Ми зв'яжемося з вами для підтвердження.</p>
+        <a href="catalog.html" class="btn btn-outline">Продовжити покупки</a>
+      </div>
+    </div>
+  </main>
+
+  <div id="footer-mount"></div>
+
+  <script type="module">
+    import { getCart, saveCart } from "./app.js";
+    import { formatPrice } from "./products.js";
+    import { getCurrentUser } from "./auth.js";
+    import { isSupabaseConfigured, getSupabase } from "./supabase.js";
+
+    const form = document.getElementById("checkout-form");
+    const errEl = document.getElementById("checkout-error");
+    const addressField = document.getElementById("address-field");
+    const totalEl = document.getElementById("checkout-total");
+    const successBox = document.getElementById("checkout-success");
+
+    function refreshTotal() {
+      const cart = getCart();
+      const total = cart.reduce((s, i) => s + i.price * i.qty, 0);
+      totalEl.textContent = "Разом: " + formatPrice(total);
+    }
+    refreshTotal();
+
+    // Поле адреси показуємо лише для поштових способів отримання.
+    form.querySelectorAll('input[name="delivery"]').forEach((r) => {
+      r.addEventListener("change", () => {
+        addressField.hidden =
+          form.querySelector('input[name="delivery"]:checked').value === "pickup";
+      });
+    });
+    addressField.hidden = true; // pickup обраний за замовчуванням
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      errEl.textContent = "";
+
+      const name = document.getElementById("cust-name").value.trim();
+      const phone = document.getElementById("cust-phone").value.trim();
+      const email = document.getElementById("cust-email").value.trim();
+      const delivery = form.querySelector('input[name="delivery"]:checked').value;
+      const address = document.getElementById("cust-address").value.trim();
+      const cart = getCart();
+
+      if (!name) { errEl.textContent = "Вкажіть ім'я."; return; }
+      const END = String.fromCharCode(36); // "$" — кінець рядка в regex
+      const phoneOk = new RegExp("^\\+?[\\d\\s()-]{9,}" + END).test(phone);
+      const emailOk = new RegExp("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+" + END).test(email);
+      if (!phoneOk) { errEl.textContent = "Вкажіть коректний номер телефону."; return; }
+      if (!emailOk) { errEl.textContent = "Вкажіть коректний email."; return; }
+      if (delivery !== "pickup" && !address) { errEl.textContent = "Вкажіть місто та відділення отримання."; return; }
+      if (cart.length === 0) { errEl.textContent = "Кошик порожній — додайте товари."; return; }
+
+      // Замовлення записується в Supabase, лише якщо покупець увійшов
+      // (правило RLS: insert дозволений тільки у власний user_id).
+      const user = await getCurrentUser();
+      if (isSupabaseConfigured) {
+        if (!user) {
+          errEl.textContent =
+            "Щоб зберегти замовлення, увійдіть в акаунт (кнопка «Увійти» у меню).";
+          return;
+        }
+        const order = {
+          user_id: user.id,
+          items: cart,
+          total: cart.reduce((s, i) => s + i.price * i.qty, 0),
+          delivery_method: delivery, // pickup | novaposhta | ukrposhta
+          customer_name: name,
+          phone,
+          address: delivery === "pickup" ? "Самовивіз: Шпола, вул. Леніна, 10" : address,
+          status: "Нове"
+        };
+        try {
+          const sb = await getSupabase();
+          const { error } = await sb.from("orders").insert(order);
+          if (error) throw error;
+        } catch (err) {
+          console.error(err);
+          errEl.textContent = "Не вдалося зберегти замовлення. Перевірте з'єднання та повторіть.";
+          return;
+        }
+      } else {
+        // Демо-режим: нікуди не пишемо, лише показуємо структуру в консолі.
+        console.info("Замовлення (демо-режим, Supabase не підключено):", {
+          name, phone, email, delivery, address, items: cart
+        });
+      }
+
+      saveCart([]); // очищаємо кошик після підтвердження
+      form.hidden = true;
+      successBox.hidden = false;
+    });
+  </script>
+</body>
+</html>
