@@ -2,7 +2,7 @@
 // backend.js — клієнт «Сателіт Backend» (власна заміна Firebase/Supabase)
 // ============================================================
 
-export const API_URL = "https://ВАШ-СЕРВІС.onrender.com"; // ← впишіть URL з Render
+export const API_URL = "https://satelit-backend.onrender.com"; // ← впишіть URL з Render
 
 const TOKEN_KEY = "satelit_token_v1";
 
