@@ -1,20 +1,14 @@
 // ============================================================
 // app.js — загальна логіка сайту «Сателіт»
-// - рендер header/footer з одного джерела (без дублювання);
-// - мобільне hamburger-меню;
-// - кошик у localStorage;
-// Шляхи відносні — сумісно з GitHub Pages (/repo/...).
+// Header/Footer одні на всіх сторінках, меню, кошик, кнопка входу.
 // ============================================================
 
 import { formatPrice, getProducts } from "./products.js";
 
 const SHOP = {
   name: "Сателіт",
-  // Пряме посилання на картку магазину в Google Maps
   mapsUrl: "https://www.google.com/maps/place/%D0%9C%D0%B0%D0%B3%D0%B0%D0%B7%D0%B8%D0%BD+%22%D0%A1%D0%B0%D1%82%D0%B5%D0%BB%D1%96%D1%82%22/@49.0113539,31.3918269,336m/data=!3m1!1e3!4m17!1m8!3m7!1s0x40d17775f1491717:0xab36193c2da13de2!2z0LLRg9C70LjRhtGPINCb0LXQvdGW0L3QsCwgMTAsINCo0L_QvtC70LAsINCn0LXRgNC60LDRgdGM0LrQsCDQvtCx0LvQsNGB0YLRjCwgMjA2MDA!3b1!8m2!3d49.0113634!4d31.3927529!16s%2Fg%2F11p5zj7tl_!3m7!1s0x40d177b040f2557f:0x8bf52c4828e7bc8b!8m2!3d49.0113634!4d31.3927529!9m1!1b1!16s%2Fg%2F11f0333sd3?entry=ttu"
 };
-
-// ---------- Header / Footer (єдині для всіх сторінок) ----------
 
 function currentPage() {
   const path = location.pathname.split("/").pop() || "index.html";
@@ -76,17 +70,19 @@ export function renderFooter() {
         <a href="contacts.html">Контакти</a>
       </div>
       <div class="footer-col">
+        <p class="footer-title">Підтримка</p>
+        <a href="mailto:satelit-magazin@ukr.net">satelit-magazin@ukr.net</a>
+      </div>
+      <div class="footer-col">
         <p class="footer-title">Мапа</p>
         <a href="${SHOP.mapsUrl}" target="_blank" rel="noopener" class="btn btn-outline btn-sm">
           Відкрити в Google Maps
         </a>
       </div>
     </div>
-    <div class="footer-bottom container">© Сателіт</div>
+    <div class="footer-bottom container">© Сателіт · Створено завдяки <a href="https://0leksiimarich.github.io/Acore/" target="_blank" rel="noopener" class="acore-link">Acore</a></div>
   </footer>`;
 }
-
-// ---------- Мобільне меню ----------
 
 function initHamburger() {
   const burger = document.getElementById("hamburger");
@@ -100,7 +96,6 @@ function initHamburger() {
 }
 
 // ---------- Кошик (localStorage) ----------
-
 const CART_KEY = "satelit_cart_v1";
 
 export function getCart() {
@@ -136,8 +131,6 @@ export function updateCartBadge() {
   badge.classList.toggle("visible", count > 0);
 }
 
-// ---------- Рендер карток товарів ----------
-
 export function productCardHTML(p) {
   return `
   <article class="product-card">
@@ -169,7 +162,22 @@ export function bindAddToCartButtons(scope = document) {
   });
 }
 
-// ---------- Ініціалізація сторінки ----------
+async function updateAuthButton() {
+  const btn = document.getElementById("auth-button");
+  if (!btn) return;
+  let user = null;
+  try {
+    const { getCurrentUser } = await import("./auth.js");
+    user = await getCurrentUser();
+  } catch {}
+  if (user) {
+    btn.textContent = "Мій акаунт";
+    btn.href = "account.html";
+  } else {
+    btn.textContent = "Увійти";
+    btn.href = "login.html";
+  }
+}
 
 document.addEventListener("DOMContentLoaded", () => {
   const headerMount = document.getElementById("header-mount");
@@ -179,4 +187,5 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initHamburger();
   updateCartBadge();
+  updateAuthButton();
 });
