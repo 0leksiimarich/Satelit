@@ -4,12 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Створити акаунт — Сателіт</title>
-  <meta name="description" content="Реєстрація акаунта в магазині «Сателіт» за email і паролем.">
-  <link rel="icon" href="assets/logo.svg" type="image/png">
-  <meta property="og:title" content="Створити акаунт — Сателіт">
-  <meta property="og:type" content="website">
-  <meta property="og:image" content="assets/logo.svg">
-  <meta property="og:locale" content="uk_UA">
+  <meta name="description" content="Реєстрація акаунта в магазині «Сателіт» за email, паролем та одноразовим кодом.">
+  <link rel="icon" href="assets/logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -23,6 +19,14 @@
 
       <form id="register-form" novalidate>
         <div class="field">
+          <label for="reg-name">Ім'я та прізвище</label>
+          <input type="text" id="reg-name" autocomplete="name" required placeholder="Наприклад: Тарас Шевченко">
+        </div>
+        <div class="field">
+          <label for="reg-phone">Номер телефону</label>
+          <input type="tel" id="reg-phone" autocomplete="tel" required placeholder="+380…">
+        </div>
+        <div class="field">
           <label for="email">Email</label>
           <input type="email" id="email" autocomplete="email" required placeholder="you@example.com">
         </div>
@@ -33,6 +37,15 @@
         <div class="field">
           <label for="password2">Повторіть пароль</label>
           <input type="password" id="password2" autocomplete="new-password" required>
+        </div>
+        <div class="field">
+          <label for="otp-code">Код із листа (підтвердження email)</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="otp-code" inputmode="numeric" autocomplete="one-time-code"
+                   maxlength="6" pattern="[0-9]*" required placeholder="6 цифр" style="flex:1;">
+            <button type="button" class="btn btn-outline" id="send-code-btn" style="white-space:nowrap;">Отримати код</button>
+          </div>
+          <p class="success-text" id="code-sent-note" hidden></p>
         </div>
         <p class="error-text" id="reg-error" role="alert"></p>
         <button type="submit" class="btn btn-primary btn-block">Зареєструватися</button>
@@ -46,37 +59,60 @@
   <div id="footer-mount"></div>
 
   <script type="module">
-    import { signUpWithEmail, translateAuthError } from "./auth.js";
+    import { requestCode, registerUser, translateAuthError } from "./auth.js";
 
     const errEl = document.getElementById("reg-error");
+    const codeNote = document.getElementById("code-sent-note");
+    const sendBtn = document.getElementById("send-code-btn");
+
+    // Надсилання одноразового коду на email
+    sendBtn.addEventListener("click", async () => {
+      errEl.textContent = "";
+      codeNote.hidden = true;
+      const email = document.getElementById("email").value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        errEl.textContent = "Спершу вкажіть коректний email.";
+        return;
+      }
+      sendBtn.disabled = true;
+      sendBtn.textContent = "Надсилаю…";
+      try {
+        const res = await requestCode(email, "register");
+        codeNote.hidden = false;
+        codeNote.textContent = res.demoCode
+          ? `Демо-режим (SMTP не налаштовано). Ваш тестовий код: ${res.demoCode}`
+          : "Код надіслано на вашу пошту. Перевірте листи (і теку «Спам»).";
+        document.getElementById("otp-code").focus();
+      } catch (err) {
+        errEl.textContent = translateAuthError(err);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = "Отримати код";
+      }
+    });
 
     document.getElementById("register-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       errEl.textContent = "";
+      const name = document.getElementById("reg-name").value.trim();
+      const phone = document.getElementById("reg-phone").value.trim();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
       const password2 = document.getElementById("password2").value;
+      const code = document.getElementById("otp-code").value.trim();
 
-      if (!email || !password) { errEl.textContent = "Заповніть усі поля."; return; }
+      if (!name || !phone || !email || !password) { errEl.textContent = "Заповніть усі поля."; return; }
+      if (name.length < 3 || !name.includes(" ")) { errEl.textContent = "Вкажіть ім'я та прізвище повністю."; return; }
+      if (!/^\+?[\d\s()-]{9,}$/.test(phone)) { errEl.textContent = "Вкажіть коректний номер телефону."; return; }
       if (password.length < 6) { errEl.textContent = "Пароль занадто короткий (мінімум 6 символів)."; return; }
       if (password !== password2) { errEl.textContent = "Паролі не збігаються."; return; }
+      if (!/^\d{6}$/.test(code)) { errEl.textContent = "Введіть 6-значний код із листа."; return; }
 
       try {
-        const data = await signUpWithEmail(email, password);
-        // Supabase може потребувати підтвердження email.
-        if (data.user && data.session) {
-          location.href = "account.html";
-        } else {
-          errEl.textContent = "";
-          alert("Реєстрація успішна! Перевірте пошту для підтвердження email (якщо воно увімкнене), потім увійдіть.");
-          location.href = "login.html";
-        }
+        await registerUser(email, password, name, phone, code);
+        location.href = "account.html";
       } catch (err) {
-        if (err && err.message === "DEMO_MODE") {
-          errEl.textContent = "Реєстрація ще не підключена (додайте Supabase ключі в supabase.js).";
-        } else {
-          errEl.textContent = translateAuthError(err);
-        }
+        errEl.textContent = translateAuthError(err);
       }
     });
   </script>
